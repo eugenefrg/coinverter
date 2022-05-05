@@ -1,0 +1,17 @@
+.layout {
+  height: 100vh;
+}
+
+.centered {
+  text-align: center;
+}
+
+.coinName {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.justifyContentCenter {
+  display: flex;
+  justify-content: center;
+}
