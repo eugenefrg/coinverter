@@ -158,11 +158,11 @@ const Home: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
   }, [isActive]);
 
   // set the theme based on the dark mode state
-  if (typeof window !== "undefined") {
-    useEffect(() => {
+  useEffect(() => {
+    if (typeof window !== "undefined") {
       setIsDarkMode(window?.localStorage.getItem("isDarkMode") === "true");
-    }, [window]);
-  }
+    }
+  }, []);
 
   return (
     <div>
