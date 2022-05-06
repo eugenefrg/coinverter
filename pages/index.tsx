@@ -1,130 +1,188 @@
-import {
-  Button,
-  Card,
-  Col,
-  Input,
-  InputNumber,
-  Layout,
-  Modal,
-  Row,
-  Space,
-  Typography,
-} from "antd";
-import type { NextPage } from "next";
+import Container from "@mui/material/Container";
+import Paper from "@mui/material/Paper";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import Typography from "@mui/material/Typography";
+import type { InferGetStaticPropsType, NextPage } from "next";
 import Head from "next/head";
-import styles from "../styles/Home.module.css";
-import "antd/dist/antd.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Web3 from "web3";
+import { ConversionCard } from "../components/ConversionCard";
+import { WalletModal } from "../components/WalletModal";
+import { hooks, metaMask } from "./connectors/metaMask";
 
-const Home: NextPage = () => {
-  const [nepValue, setNepValue] = useState<number>();
-  const [busdValue, setBusdValue] = useState<number>();
+interface ChainInfo {
+  name: string;
+  chain: string;
+  chainId: number;
+  icon: string;
+  infoURL: string;
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+  };
+}
+
+interface ChainCoin {
+  chainId: number;
+  name: string;
+}
+
+export async function getStaticProps() {
+  const chainData = await fetch(`https://chainid.network/chains.json`);
+  const chainCoin = await fetch(`https://api.llama.fi/chains`);
+
+  return {
+    props: {
+      chains: await chainData.json(),
+      chainCoins: await chainCoin.json(),
+    },
+  };
+}
+
+const Home: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
+  chains,
+  chainCoins,
+}: InferGetStaticPropsType<typeof getStaticProps>) => {
+  const [accountBalance, setAccountBalance] = useState<number>(0);
 
   const [visible, setVisible] = useState<boolean>(false);
 
-  const handleNepCoinChange = (value: number) => {
-    setNepValue(value);
-    setBusdValue(value * 3);
-  };
+  const { useChainId, useAccounts, useIsActive, useProvider } = hooks;
 
-  const handleBusdCoinChange = (value: number) => {
-    setBusdValue(value);
-    setNepValue(value / 3);
-  };
+  const chainId = useChainId();
+  const accounts = useAccounts();
+
+  const isActive = useIsActive();
+
+  const provider = useProvider();
+
+  const currentChain = chains?.find((c: ChainInfo) => c.chainId === chainId);
+  const chainCoinData = chainCoins?.find(
+    (c: ChainCoin) => c.chainId === currentChain?.chainId
+  );
 
   /**
-   * TODO:
-   * Styling, change coin logo. also add the logo to the coin names maybe ??
+   * Get the balance of the account
+   * @param account The account to check the balance of
+   * @returns The balance of the account
    */
+  const getBalance = async (account: string): Promise<number> => {
+    try {
+      const balance = await provider?.getBalance(account, "latest");
+      /**
+       * if the balance is undefined, it means that the account is not active.
+       * therefore, we set the balance to 0.
+       */
+      if (!balance) return 0;
+
+      /**
+       * if the balance is defined, we return the balance.
+       * The balance is a hexadecimal string representing the balance in wei.
+       * We convert it to a number using web3.utils.fromWei.
+       */
+      const weiToEther = Web3.utils.fromWei(balance._hex, "ether");
+
+      // fromWei returns a string, so we need to parse it to a number
+      return Number(weiToEther);
+    } catch (error) {
+      /**
+       * If the error contains underlying network changed, disconnect
+       * the provider and close the modal if it is open.
+       */
+      if ((error as any).toString().includes("underlying network changed")) {
+        metaMask?.deactivate();
+        setVisible(false);
+      }
+      return 0;
+    }
+  };
+
+  // attempt to connect eagerly on mount
+  useEffect(() => {
+    void metaMask.connectEagerly();
+  }, []);
+
+  useEffect(() => {
+    if (chainId && accounts) {
+      getBalance(accounts[0]).then((balance) => {
+        setAccountBalance(balance);
+      });
+    }
+  }, [accounts, chainId]);
+
+  useEffect(() => {
+    if (isActive === false) {
+      setVisible(false);
+    }
+  }, [isActive]);
+
+  let coinImage = chainCoinData?.name
+    ? `https://defillama.com/chain-icons/rsz_${chainCoinData.name.toLowerCase()}.jpg`
+    : `https://defillama.com/chain-icons/rsz_ethereum.jpg`;
+
+  if (currentChain?.chainId === 97) {
+    coinImage = `https://defillama.com/chain-icons/rsz_binance.jpg`;
+  }
+  const darkTheme = createTheme({
+    palette: {
+      mode: "light",
+    },
+  });
+
   return (
     <div>
       <Head>
         <title>Coinverter</title>
-        <meta name="description" content="See how much your coin is worth 👀" />
-        {/* 
-          TODO:
-          Change this to a favicon of a coin 
-        */}
-        <link rel="icon" href="/favicon.ico" />
+        <meta name="description" content="Convert NEP to BUSD" />
+        <link
+          rel="icon"
+          href="https://ethereum.org/favicon-32x32.png?v=8b512faa8d4a0b019c123a771b6622aa"
+        />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+        />
       </Head>
-
-      <Layout className={styles.layout}>
-        <Layout.Content>
-          <Row className={styles.layout} align="middle">
-            <Col span={12} offset={6}>
-              <Row>
-                <Col span={24}>
-                  <Typography.Title level={1} className={styles.centered}>
-                    Coinverter
-                  </Typography.Title>
-                  <Typography.Title level={3} className={styles.centered}>
-                    See how much your coin is worth 👀
-                  </Typography.Title>
-                </Col>
-              </Row>
-              <Row>
-                <Col span={24}>
-                  <Card className={styles.justifyContentCenter}>
-                    <Space direction="vertical" size="large">
-                      <Space>
-                        <Space direction="vertical" size={4}>
-                          <Typography.Title
-                            level={4}
-                            className={styles.coinName}
-                          >
-                            NEP
-                          </Typography.Title>
-                          <Typography.Text>1=3BUSD</Typography.Text>
-                        </Space>
-                        <InputNumber
-                          name="nepCoin"
-                          onChange={handleNepCoinChange}
-                          value={nepValue}
-                          precision={2}
-                          controls={false}
-                        />
-                        <Typography.Text>X</Typography.Text>
-                        <InputNumber
-                          name="busdCoin"
-                          onChange={handleBusdCoinChange}
-                          value={busdValue}
-                          precision={2}
-                          controls={false}
-                        />
-                        <Space direction="vertical" size={4}>
-                          <Typography.Title
-                            level={4}
-                            className={styles.coinName}
-                          >
-                            BUSD
-                          </Typography.Title>
-                          <Typography.Text>1=3BUSD</Typography.Text>
-                        </Space>
-                      </Space>
-                      <div className={styles.justifyContentCenter}>
-                        <Button type="ghost" onClick={() => setVisible(true)}>
-                          Connect to your wallet
-                        </Button>
-                      </div>
-                    </Space>
-                  </Card>
-                </Col>
-              </Row>
-            </Col>
-          </Row>
-        </Layout.Content>
-      </Layout>
-      <Modal
-        title="How to use Coinverter"
-        visible={visible}
-        onOk={() => setVisible(false)}
-        onCancel={() => setVisible(false)}
-      >
-        <Typography.Title>Modal</Typography.Title>
-        <Typography.Text>
-          This is a modal. You can use this to display information to the user.
-        </Typography.Text>
-      </Modal>
+      <ThemeProvider theme={darkTheme}>
+        <Paper
+          elevation={0}
+          square
+          sx={{ flexGrow: 1, height: "100vh", pt: 20 }}
+        >
+          <Container maxWidth="md">
+            <Typography
+              variant="h1"
+              component="h1"
+              sx={{
+                fontSize: "3rem",
+                fontWeight: "bold",
+                marginBottom: "1rem",
+                textAlign: "center",
+              }}
+            >
+              Coinverter
+            </Typography>
+            <ConversionCard
+              isActive={isActive}
+              onClickDetails={() => setVisible(true)}
+            />
+          </Container>
+          <WalletModal
+            open={visible}
+            onClose={() => {
+              setVisible(false);
+            }}
+            walletAddress={accounts?.[0]}
+            balance={accountBalance}
+            chainName={currentChain?.name}
+            coinImage={coinImage}
+            symbol={currentChain?.nativeCurrency?.symbol}
+            onDeactivate={() => {
+              void metaMask.deactivate();
+            }}
+          />
+        </Paper>
+      </ThemeProvider>
     </div>
   );
 };
