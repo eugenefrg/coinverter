@@ -59,14 +59,22 @@ const WalletModal: React.FC<WalletModalProps> = (props) => {
               {walletAddress?.substring(0, 10)}...
             </Typography>
             <Typography variant="body1">You have:</Typography>
-            <Typography variant="h6" sx={{ pb: 4 }}>
-              {balance} {symbol}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                pb: 4,
+              }}
+            >
+              <Typography variant="h6" sx={{ display: "inline-block", pr: 1 }}>
+                {balance} {symbol}
+              </Typography>
               <img
                 src={coinImage}
                 alt={symbol}
                 style={{ borderRadius: "50%" }}
               />
-            </Typography>
+            </Box>
           </Box>
           <Box>
             <Button

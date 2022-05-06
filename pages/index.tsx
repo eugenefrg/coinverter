@@ -1,5 +1,10 @@
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import SettingsIcon from "@mui/icons-material/Settings";
 import Container from "@mui/material/Container";
 import Paper from "@mui/material/Paper";
+import SpeedDial from "@mui/material/SpeedDial";
+import SpeedDialAction from "@mui/material/SpeedDialAction";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
 import type { InferGetStaticPropsType, NextPage } from "next";
@@ -39,27 +44,48 @@ export async function getStaticProps() {
   };
 }
 
+const darkTheme = createTheme({
+  palette: {
+    mode: "dark",
+  },
+});
+const lightTheme = createTheme({
+  palette: {
+    mode: "light",
+  },
+});
+
 const Home: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
   chains,
   chainCoins,
 }: InferGetStaticPropsType<typeof getStaticProps>) => {
-  const [accountBalance, setAccountBalance] = useState<number>(0);
-
-  const [visible, setVisible] = useState<boolean>(false);
-
+  // Get the metamask hooks
   const { useChainId, useAccounts, useIsActive, useProvider } = hooks;
-
   const chainId = useChainId();
   const accounts = useAccounts();
-
   const isActive = useIsActive();
-
   const provider = useProvider();
 
+  // initialize states
+  const [accountBalance, setAccountBalance] = useState<number>(0);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [visible, setVisible] = useState<boolean>(false);
+
+  // get the current chain and it's icon from chainCoins.
   const currentChain = chains?.find((c: ChainInfo) => c.chainId === chainId);
   const chainCoinData = chainCoins?.find(
     (c: ChainCoin) => c.chainId === currentChain?.chainId
   );
+
+  // set the current chain's icon as a variable.
+  let coinImage = chainCoinData?.name
+    ? `https://defillama.com/chain-icons/rsz_${chainCoinData.name.toLowerCase()}.jpg`
+    : `https://defillama.com/chain-icons/rsz_ethereum.jpg`;
+
+  // if the user is using binance testnet, set the icon to the binance icon.
+  if (currentChain?.chainId === 97) {
+    coinImage = `https://defillama.com/chain-icons/rsz_binance.jpg`;
+  }
 
   /**
    * Get the balance of the account
@@ -97,11 +123,21 @@ const Home: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
     }
   };
 
+  /**
+   * This function is called when the user clicks on the dark / light mode button.
+   * @param setToDarkMode Set the dark mode to true or false
+   */
+  const handleToggleDarkMode = (setToDarkMode: boolean) => {
+    setIsDarkMode(setToDarkMode);
+    window?.localStorage.setItem("isDarkMode", setToDarkMode.toString());
+  };
+
   // attempt to connect eagerly on mount
   useEffect(() => {
     void metaMask.connectEagerly();
   }, []);
 
+  // get the balance of the account
   useEffect(() => {
     if (chainId && accounts) {
       getBalance(accounts[0]).then((balance) => {
@@ -110,24 +146,23 @@ const Home: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
     }
   }, [accounts, chainId]);
 
+  /**
+   * If the connection is not active, we close the modal.
+   * This is to ensure that the modal is closed when the user disconnects.
+   * The user gets disconnected when the network changes.
+   */
   useEffect(() => {
     if (isActive === false) {
       setVisible(false);
     }
   }, [isActive]);
 
-  let coinImage = chainCoinData?.name
-    ? `https://defillama.com/chain-icons/rsz_${chainCoinData.name.toLowerCase()}.jpg`
-    : `https://defillama.com/chain-icons/rsz_ethereum.jpg`;
-
-  if (currentChain?.chainId === 97) {
-    coinImage = `https://defillama.com/chain-icons/rsz_binance.jpg`;
+  // set the theme based on the dark mode state
+  if (typeof window !== "undefined") {
+    useEffect(() => {
+      setIsDarkMode(window?.localStorage.getItem("isDarkMode") === "true");
+    }, [window]);
   }
-  const darkTheme = createTheme({
-    palette: {
-      mode: "light",
-    },
-  });
 
   return (
     <div>
@@ -143,7 +178,7 @@ const Home: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
           href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
         />
       </Head>
-      <ThemeProvider theme={darkTheme}>
+      <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
         <Paper
           elevation={0}
           square
@@ -182,6 +217,26 @@ const Home: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
             }}
           />
         </Paper>
+        <SpeedDial
+          ariaLabel="SpeedDial basic example"
+          sx={{ position: "absolute", bottom: 16, right: 16 }}
+          icon={<SettingsIcon />}
+        >
+          {!isDarkMode && (
+            <SpeedDialAction
+              icon={<DarkModeIcon />}
+              tooltipTitle={"Dark Mode"}
+              onClick={() => handleToggleDarkMode(true)}
+            />
+          )}
+          {isDarkMode && (
+            <SpeedDialAction
+              icon={<LightModeIcon />}
+              tooltipTitle={"Light Mode"}
+              onClick={() => handleToggleDarkMode(false)}
+            />
+          )}
+        </SpeedDial>
       </ThemeProvider>
     </div>
   );
