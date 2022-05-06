@@ -6,7 +6,7 @@ import Paper from "@mui/material/Paper";
 import TextField, { TextFieldProps } from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useState } from "react";
-import { metaMask } from "../../pages/connectors/metaMask";
+import { metaMask } from "../../connectors/metaMask";
 
 interface ConversionCardProps {
   isActive: boolean;

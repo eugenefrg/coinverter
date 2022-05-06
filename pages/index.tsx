@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import Web3 from "web3";
 import { ConversionCard } from "../components/ConversionCard";
 import { WalletModal } from "../components/WalletModal";
-import { hooks, metaMask } from "./connectors/metaMask";
+import { hooks, metaMask } from "../connectors/metaMask";
 
 interface ChainInfo {
   name: string;
